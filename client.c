@@ -25,6 +25,7 @@
 
 #include "open62541/open62541.h"
 #include <signal.h>
+#include <stdio.h>
 
 #ifdef _WIN32
 # include <windows.h>
@@ -43,18 +44,13 @@ static void stopHandler(int sign) {
 }
 
 static void
-handler_currentTimeChanged(UA_Client *client, UA_UInt32 subId, void *subContext,
+handler_sin_mill(UA_Client *client, UA_UInt32 subId, void *subContext,
                            UA_UInt32 monId, void *monContext, UA_DataValue *value) {
-    UA_LOG_INFO(logger, UA_LOGCATEGORY_USERLAND, "currentTime has changed!");
-    if(UA_Variant_hasScalarType(&value->value, &UA_TYPES[UA_TYPES_DATETIME])) {
-        UA_DateTime raw_date = *(UA_DateTime *) value->value.data;
-        UA_DateTimeStruct dts = UA_DateTime_toStruct(raw_date);
-        UA_LOG_INFO(logger, UA_LOGCATEGORY_USERLAND, "date is: %02u-%02u-%04u %02u:%02u:%02u.%03u",
-                        dts.day, dts.month, dts.year, dts.hour, dts.min, dts.sec, dts.milliSec);
-    }
+    UA_LOG_INFO(logger, UA_LOGCATEGORY_USERLAND, "open62541_CLIENT - received data from open62541_SERVER: ");
+    printf("%f\n", *(float*)value->value.data);
 }
 
-static void
+// static void
 deleteSubscriptionCallback(UA_Client *client, UA_UInt32 subscriptionId, void *subscriptionContext) {
     UA_LOG_INFO(logger, UA_LOGCATEGORY_USERLAND, "Subscription Id %u was deleted", subscriptionId);
 }
@@ -91,14 +87,14 @@ stateCallback (UA_Client *client, UA_ClientState clientState) {
 
             /* Add a MonitoredItem */
             UA_MonitoredItemCreateRequest monRequest =
-                UA_MonitoredItemCreateRequest_default(UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_CURRENTTIME));
+                UA_MonitoredItemCreateRequest_default(UA_NODEID_STRING(1, "numeric-value"));
 
             UA_MonitoredItemCreateResult monResponse =
                 UA_Client_MonitoredItems_createDataChange(client, response.subscriptionId,
                                                           UA_TIMESTAMPSTORETURN_BOTH,
-                                                          monRequest, NULL, handler_currentTimeChanged, NULL);
+                                                          monRequest, NULL, handler_sin_mill, NULL);
             if(monResponse.statusCode == UA_STATUSCODE_GOOD)
-                UA_LOG_INFO(logger, UA_LOGCATEGORY_USERLAND, "Monitoring UA_NS0ID_SERVER_SERVERSTATUS_CURRENTTIME', id %u", monResponse.monitoredItemId);
+                UA_LOG_INFO(logger, UA_LOGCATEGORY_USERLAND, "Monitoring numeric-value', id %u", monResponse.monitoredItemId);
         }
         break;
         case UA_CLIENTSTATE_SESSION_RENEWED:
